@@ -11,43 +11,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout repository
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # Step 2: Check for hardcoded secrets
-    - name: Secret Scan
-      uses: trufflesecurity/trufflehog@v3
+    - name: Secret Scan (TruffleHog)
+      uses: trufflesecurity/trufflehog@main
       with:
         path: .
-        base: ""
-        head: ""
       continue-on-error: true
 
-    # Step 3: Dependency & vulnerability scan
     - name: Dependency Review
       uses: actions/dependency-review-action@v4
       continue-on-error: true
 
-    # Step 4: HTML validation
     - name: HTML Lint
       run: |
         npm install -g htmlhint
         htmlhint "**/*.html" || true
 
-    # Step 5: CSS validation
     - name: CSS Lint
       run: |
         npm install -g stylelint stylelint-config-standard
         echo '{ "extends": "stylelint-config-standard" }' > .stylelintrc.json
         stylelint "**/*.css" || true
 
-    # Step 6: JavaScript security lint
     - name: JavaScript Lint
       run: |
         npm install -g eslint
         eslint "**/*.js" || true
 
-    # Step 7: Final security status
     - name: Security Check Complete
       run: echo "Security checks completed successfully."
