@@ -1,44 +1,59 @@
-name: Static Site Security Check
+name: Deploy to EC2
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
 
 jobs:
-  security-scan:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
+    # Step 1: Checkout repository
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Secret Scan (TruffleHog)
-      uses: trufflesecurity/trufflehog@main
+    # Step 2: Login to Docker Hub
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
       with:
-        path: .
-      continue-on-error: true
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Dependency Review
-      uses: actions/dependency-review-action@v4
-      continue-on-error: true
-
-    - name: HTML Lint
+    # Step 3: Build Docker Image
+    - name: Build Docker Image
       run: |
-        npm install -g htmlhint
-        htmlhint "**/*.html" || true
+        docker build -t gowrishankar0o/simple-html-app:latest .
 
-    - name: CSS Lint
+    # Step 4: Push Docker Image
+    - name: Push Docker Image
       run: |
-        npm install -g stylelint stylelint-config-standard
-        echo '{ "extends": "stylelint-config-standard" }' > .stylelintrc.json
-        stylelint "**/*.css" || true
+        docker push gowrishankar0o/simple-html-app:latest
 
-    - name: JavaScript Lint
-      run: |
-        npm install -g eslint
-        eslint "**/*.js" || true
+    # Step 5: SSH into EC2 and Deploy
+    - name: Deploy on EC2
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          echo "Stopping old container..."
+          sudo docker stop myapp || true
 
-    - name: Security Check Complete
-      run: echo "Security checks completed successfully."
+          echo "Removing old container..."
+          sudo docker rm myapp || true
+
+          echo "Pulling latest image..."
+          sudo docker pull gowrishankar0o/simple-html-app:latest
+
+          echo "Starting new container..."
+          sudo docker run -d \
+            -p 80:80 \
+            --restart always \
+            --name myapp \
+            gowrishankar0o/simple-html-app:latest
+
+          echo "Deployment successful!"
