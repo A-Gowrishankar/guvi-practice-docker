@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Build, Push and Deploy to EC2
 
 on:
   push:
@@ -6,38 +6,66 @@ on:
       - main
 
 jobs:
-  deploy:
+
+  # ========================
+  # STAGE 1 — BUILD
+  # ========================
+  build:
+    name: Build Docker Image
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout repository
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # Step 2: Login to Docker Hub
+    - name: Build Docker Image
+      run: |
+        docker build -t gowrishankar0o/simple-html-app:latest .
+
+
+  # ========================
+  # STAGE 2 — PUSH
+  # ========================
+  push:
+    name: Push Image to Docker Hub
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
     - name: Login to Docker Hub
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    # Step 3: Build Docker Image
-    - name: Build Docker Image
+    - name: Build Docker Image (Again)
       run: |
         docker build -t gowrishankar0o/simple-html-app:latest .
 
-    # Step 4: Push Docker Image
     - name: Push Docker Image
       run: |
         docker push gowrishankar0o/simple-html-app:latest
 
-    # Step 5: SSH into EC2 and Deploy
+
+  # ========================
+  # STAGE 3 — DEPLOY
+  # ========================
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: push
+
+    steps:
     - name: Deploy on EC2
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.EC2_SSH_KEY }}
+        key: |
+          ${{ secrets.EC2_SSH_KEY }}
         port: 22
         script: |
           echo "Stopping old container..."
