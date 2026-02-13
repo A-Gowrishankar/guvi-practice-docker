@@ -83,5 +83,4 @@ jobs:
             --restart always \
             --name myapp \
             gowrishankar0o/simple-html-app:latest
-
-          echo "Deployment successful!"
+            echo "Deployment successful!"
